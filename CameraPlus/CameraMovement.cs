@@ -17,7 +17,7 @@ namespace CameraPlus
             if (Utils.IsModInstalled("Song Loader Plugin"))
             {
                 _cameraPlus = cameraPlus;
-                Plugin.Instance.ActiveSceneChanged += SceneManager_activeSceneChanged;
+				Plugin.Instance.ActiveSceneChanged += SceneManager_activeSceneChanged;
                 return true;
             }
             return false;
@@ -160,7 +160,17 @@ namespace CameraPlus
         {
             _cameraPlus = cameraPlus;
             Plugin.Instance.ActiveSceneChanged += SceneManager_activeSceneChanged;
-            return LoadCameraData(cameraPlus.Config.movementScriptPath);
+
+			//Subscribe to file changing events in the scripts folder.
+			FileSystemWatcher pathWatcher = new FileSystemWatcher();
+			pathWatcher.Path = (Environment.CurrentDirectory + @"\UserData\CameraPlus\Scripts");
+			pathWatcher.NotifyFilter = NotifyFilters.LastWrite;
+			pathWatcher.Filter = "*.json";
+			pathWatcher.Changed += OnCameraScriptChanged;
+			pathWatcher.EnableRaisingEvents = true;
+
+			return LoadCameraData(cameraPlus.Config.movementScriptPath);
+
         }
 
         public virtual void Shutdown()
@@ -188,7 +198,18 @@ namespace CameraPlus
             _paused = false;
         }
 
-        protected bool LoadCameraData(string path)
+		private void OnCameraScriptChanged(object source, FileSystemEventArgs e)
+		{
+			StartCoroutine(WaitLoadCameraData(e.FullPath));
+		}
+
+		private IEnumerator WaitLoadCameraData(string path)
+		{
+			yield return new WaitForSeconds(2.0f);
+			LoadCameraData(path);
+		}
+
+		protected bool LoadCameraData(string path)
         {
             if (File.Exists(path))
             {
